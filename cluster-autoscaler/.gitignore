@@ -12,3 +12,5 @@ Session.vim
 .netrwhist
 .vscode
 ./integration/logs
+.env
+integration/logs/autoscaler_processs.log

@@ -48,6 +48,11 @@ GARDEN_NAMESPACE=garden
 gardenctl target --garden sap-landscape-dev
 eval $(gardenctl kubectl-env bash)
 
+if [[ ! -d "$KUBECONFIG_PATH" ]]; then
+  mkdir -p "$KUBECONFIG_PATH"
+  echo "Created dirs $KUBECONFIG_PATH"
+fi
+
 #setting kubeconfig of control cluster
 
 echo "$(kubectl create -f $PROJECT_ROOT/hack/kubeconfig-request.json --raw /apis/core.gardener.cloud/v1beta1/namespaces/${GARDEN_NAMESPACE}/shoots/${SEED}/adminkubeconfig | jq -r ".status.kubeconfig" | base64 -d)" >  $KUBECONFIG_PATH/kubeconfig_control.yaml
@@ -63,3 +68,16 @@ echo "kubeconfigs have been downloaded and kept at /dev/kubeconfigs/kubeconfig_<
 export CONTROL_NAMESPACE=shoot--$PROJECT--$SHOOT
 export CONTROL_KUBECONFIG=$KUBECONFIG_PATH/kubeconfig_control.yaml
 export TARGET_KUBECONFIG=$KUBECONFIG_PATH/kubeconfig_target.yaml
+
+devEnvFile="$PROJECT_ROOT/.env"
+cat << EOF >"$devEnvFile"
+CONTROL_NAMESPACE="$CONTROL_NAMESPACE"
+CONTROL_KUBECONFIG="$CONTROL_KUBECONFIG"
+TARGET_KUBECONFIG="$TARGET_KUBECONFIG"
+PROJECT_ROOT="$PROJECT_ROOT"
+GARDEN_PROJECT="$PROJECT"
+GARDEN_PROJECT_NAMESPACE="$NAMESPACE"
+SHOOT="$SHOOT"
+EOF
+
+echo "Wrote $devEnvFile"
