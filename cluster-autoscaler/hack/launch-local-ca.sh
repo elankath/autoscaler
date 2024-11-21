@@ -7,11 +7,6 @@ echoErr() { echo "$@" 1>&2; }
 CURRENT_DIR=$(pwd)
 PROJECT_ROOT="${CURRENT_DIR}"
 
-if  ! command -v gum &>/dev/null; then
-  echoErr "gum not installed. Kindly first install gum (https://github.com/charmbracelet/gum) using relevant procedure for your OS"
-  exit 1
-fi
-
 devEnvFile="$PROJECT_ROOT/.env"
 if [[ ! -f "$devEnvFile" ]]; then
   echoErr  "ERROR: $devEnvFile is not created. Kindly execute ./hack/local_setup.sh before running this script."
@@ -40,7 +35,7 @@ if [[ ! -f "main.go" ]]; then
   exit 6
 fi
 
-echo "NOTE: This script generates a /tmp/local-ca.sh which launches the local CA with the same configuration as that of the remote CA in the configured shoot's control plane"
+echo "NOTE: This script launches the local CA with the same configuration as that of the remote CA in the configured shoot's control plane"
 
 echo "Targeting control plane of sap-landscape-dev:$GARDEN_PROJECT:$SHOOT"
 gardenctl target --garden sap-landscape-dev --project "$GARDEN_PROJECT" --shoot aw --control-plane
@@ -52,7 +47,26 @@ commandArgs=$(jq -r '.spec.template.spec.containers[0].command[]' "$caDeploJsonP
 export CONTROL_KUBECONFIG="$CONTROL_KUBECONFIG"
 export CONTROL_NAMESPACE="$CONTROL_NAMESPACE"
 export TARGET_KUBECONFIG="$TARGET_KUBECONFIG"
-launchCommand="go run main.go --kubeconfig=$TARGET_KUBECONFIG $commandArgs 2>&1 | tee /tmp/ca.log"
-gum confirm "Launch local CA using following command: '$launchCommand' ?" && echo "$launchCommand" && eval "$launchCommand"
+launchCommand="go run main.go --kubeconfig=$TARGET_KUBECONFIG $commandArgs 2>&1 | tee /tmp/ca-local.log"
+fastLaunchScript="/tmp/fast-launch-ca.sh"
+echo
 
+
+echo "Creating fast launch script at $fastLaunchScript"
+cat << EOF >"$fastLaunchScript"
+cd "$PROJECT_ROOT"
+export CONTROL_KUBECONFIG="$CONTROL_KUBECONFIG"
+export CONTROL_NAMESPACE="$CONTROL_NAMESPACE"
+export TARGET_KUBECONFIG="$TARGET_KUBECONFIG"
+echo "$launchCommand"
+$launchCommand
+EOF
+chmod +x "$fastLaunchScript"
+
+
+pauseSecs="5"
+echo "Launching local CA using following command in $pauseSecs secs. You may also launch using generated fast launch script at: $fastLaunchScript "
+echo "$launchCommand"
+sleep "$pauseSecs"
+eval "$launchCommand"
 
